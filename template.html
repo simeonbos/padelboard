@@ -70,6 +70,27 @@ a.slot:hover{filter:brightness(.92)}
 .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.8rem;color:var(--muted);align-items:center}
 .legend i{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:6px}
 .note{font-size:.8rem;color:var(--muted);max-width:70ch}
+.list{display:none;flex-direction:column;gap:12px}
+.lclub{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.lclub h2{font-family:var(--display);font-weight:700;font-size:1.25rem;margin:0;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.lclub h2 a{font-family:var(--body);font-size:.8rem;font-weight:600;color:var(--court);text-decoration:none}
+.lcat{display:flex;flex-direction:column;gap:6px}
+.lcat .lbl{font-size:.7rem}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+a.chip{background:var(--ball);color:var(--ball-fg);font-family:var(--mono);font-size:.85rem;padding:8px 10px;border-radius:6px;text-decoration:none;font-variant-numeric:tabular-nums}
+.lnone{font-size:.85rem;color:var(--muted)}
+@media (max-width:700px){
+  .board{display:none}
+  .list{display:flex}
+  h1{font-size:2rem}
+  .summary{grid-template-columns:1fr 1fr;gap:8px}
+  .club{padding:10px 12px}
+  .club .n{font-size:1.5rem}
+  .club .sub{display:none}
+  .controls{gap:10px 14px}
+  .days{flex-wrap:nowrap;overflow-x:auto;max-width:calc(100vw - 32px);padding-bottom:2px}
+  .day{min-width:52px;flex:none}
+}
 @media (prefers-reduced-motion:no-preference){a.slot{transition:filter .15s}}
 </style></head><body>
 
@@ -95,6 +116,7 @@ a.slot:hover{filter:brightness(.92)}
 
   <div class="legend"><span><i style="background:var(--ball)"></i>Vrij, klik om te boeken</span><span><i style="background:var(--taken)"></i>Bezet of voorbij</span><span>Tijden zijn starttijden</span></div>
 
+  <div class="list" id="list"></div>
   <div class="board" id="board"><div class="empty">Beschikbaarheid ophalen&hellip;</div></div>
 
   <p class="note">Dit overzicht ververst zichzelf ongeveer elk kwartier. Boeken gaat via de site van de club zelf: een vrij vak opent die pagina. Peakz en PadelCasa tonen per locatie; zoek daar de baan en het tijdstip op.</p>
@@ -179,24 +201,29 @@ function draw(){
   const sum=document.getElementById('summary');sum.innerHTML='';
   let html='<table><thead><tr><th class="cn" style="z-index:2">Type</th>'+times.map(t=>`<th class="${t.endsWith(':00')?'hr':''}">${t.endsWith(':00')?t:''}</th>`).join('')+'</tr></thead><tbody>';
   let anyRow=false;
+  let list='';
   for(const c of CLUBS){
     const r=cur[c.key];
     const courts=r.courts.filter(x=>(state.size==='all'||(state.size==='single')===x.single)&&(state.io==='all'||x.io===state.io));
     const CATS=[{single:false,io:'indoor',label:'Dubbel · indoor'},{single:false,io:'outdoor',label:'Dubbel · outdoor'},{single:true,io:'indoor',label:'Enkel · indoor'},{single:true,io:'outdoor',label:'Enkel · outdoor'}];
     let free=0,first=null;
+    let lcats='';
     const rows=CATS.map(cat=>{
       const group=courts.filter(x=>x.single===cat.single&&x.io===cat.io);
       if(!group.length) return '';
       let n=0;
+      const chips=[];
       const cells=times.map(t=>{
         const prices=group.map(ct=>ct.slots[t+'|'+state.dur]).filter(p=>p!=null);
         const ok=prices.length>0&&t>=nowHM;
-        if(ok){n++;if(!first||t<first)first=t}
+        if(ok){n++;if(!first||t<first)first=t;chips.push(t)}
         const lo=ok?Math.min(...prices):0;
         return `<td class="s ${t.endsWith(':00')?'hr':''}">${ok?`<a class="slot" href="${c.link(date)}" target="_blank" rel="noopener" title="${c.name} · ${cat.label} · ${t} · ${state.dur} min · ${prices.length} ${prices.length>1?'banen':'baan'} vrij · vanaf €${Number(lo).toFixed(2).replace('.',',')}">${t}</a>`:'<span class="slot"></span>'}</td>`}).join('');
       free+=n;
+      if(n) lcats+=`<div class="lcat"><span class="lbl">${cat.label}</span><div class="chips">${chips.map(t=>`<a class="chip" href="${c.link(date)}" target="_blank" rel="noopener">${t}</a>`).join('')}</div></div>`;
       return n===0?'':`<tr><td class="cn">${cat.label}</td>${cells}</tr>`;
     }).join('');
+    list+=`<section class="lclub"><h2>${c.name}<a href="${c.link(date)}" target="_blank" rel="noopener">Naar boeken</a></h2>${r.err?`<span class="lnone">Kon niet laden.</span>`:(lcats||`<span class="lnone">Geen plek in dit tijdvak.</span>`)}</section>`;
     if(rows){anyRow=true;html+=`<tr class="grp"><td colspan="${times.length+1}">${c.name}</td></tr>`+rows}
     const d=document.createElement('div');d.className='club';
     d.innerHTML=r.err?`<span class="name">${c.name}</span><span class="err">Kon niet laden (${r.err}).</span><a href="${c.link(date)}" target="_blank" rel="noopener">Bekijk op de site</a>`
@@ -204,6 +231,7 @@ function draw(){
     sum.appendChild(d);
   }
   html+='</tbody></table>';
+  document.getElementById('list').innerHTML=list;
   document.getElementById('board').innerHTML=anyRow?html:'<div class="empty">Geen vrije banen voor '+state.dur+' minuten in dit tijdvak. Probeer een andere dag of een kortere speeltijd.</div>';
 }
 buildControls();draw();
