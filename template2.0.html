@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Padelbord Utrecht</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: control bar on top, then one wide availability board: courts as rows (grouped per club), half-hour slots as columns */
+:root{
+  --bg:#f3f6f8; --surface:#ffffff; --line:#d9e1e7; --fg:#14232e; --muted:#5c6f7c;
+  --court:#1d5c8f; --ball:#d7ef3f; --ball-fg:#1f2a05; --taken:#e8edf1; --warn:#b4541a;
+  --display:"Barlow Condensed","Arial Narrow",sans-serif;
+  --body:"Figtree",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1820; --surface:#15222c; --line:#263643; --fg:#e4edf3; --muted:#8fa3b1;
+  --court:#6aaee6; --ball:#cfe83a; --ball-fg:#1a2304; --taken:#1b2a35; --warn:#f0965a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1820; --surface:#15222c; --line:#263643; --fg:#e4edf3; --muted:#8fa3b1;
+  --court:#6aaee6; --ball:#cfe83a; --ball-fg:#1a2304; --taken:#1b2a35; --warn:#f0965a; color-scheme:dark}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.45}
+.wrap{max-width:1400px;margin:0 auto;padding-block:24px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:20px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 24px}
+h1{font-family:var(--display);font-weight:700;font-size:2.4rem;letter-spacing:.01em;margin:0;line-height:1;text-wrap:balance}
+h1 span{color:var(--court)}
+.status{color:var(--muted);font-size:.85rem}
+.controls{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label,.lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.days{display:flex;gap:6px;flex-wrap:wrap}
+.day{font:inherit;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:8px;padding:6px 10px;cursor:pointer;min-width:58px;text-align:center;line-height:1.15}
+.day b{display:block;font-family:var(--display);font-size:1.25rem}
+.day small{font-size:.72rem;color:var(--muted);text-transform:uppercase}
+.day[aria-pressed="true"]{background:var(--court);border-color:var(--court);color:#fff}
+.day[aria-pressed="true"] small{color:#fff;opacity:.85}
+select,.seg button{font:inherit;font-size:.9rem;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:8px;padding:7px 10px}
+.seg{display:flex}
+.seg button{cursor:pointer;border-radius:0}
+.seg button:first-child{border-radius:8px 0 0 8px}
+.seg button:last-child{border-radius:0 8px 8px 0}
+.seg button+button{border-left:none}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+button:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--court);outline-offset:2px}
+.chk{display:flex;gap:6px;align-items:center;font-size:.9rem;padding:7px 0}
+.refresh{font:inherit;font-weight:600;background:var(--court);color:#fff;border:none;border-radius:8px;padding:8px 14px;cursor:pointer}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.club{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.club .n{font-family:var(--display);font-size:1.8rem;font-weight:700;line-height:1}
+.club .n.zero{color:var(--muted)}
+.club .name{font-weight:600}
+.club .sub{font-size:.8rem;color:var(--muted)}
+.club .err{font-size:.8rem;color:var(--warn)}
+.club a{color:var(--court);font-size:.82rem;font-weight:600;text-decoration:none}
+.club a:hover{text-decoration:underline}
+.board{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+table{border-collapse:separate;border-spacing:0;font-variant-numeric:tabular-nums;width:max-content;min-width:100%}
+th,td{padding:0;border-bottom:1px solid var(--line)}
+thead th{font-family:var(--mono);font-size:.7rem;color:var(--muted);font-weight:500;padding:8px 0 6px;text-align:left;position:sticky;top:0;background:var(--surface)}
+thead th.hr{border-left:1px solid var(--line);padding-left:4px}
+.cn{position:sticky;left:0;background:var(--surface);z-index:1;padding:6px 12px 6px 12px;min-width:150px;max-width:220px;border-right:1px solid var(--line);font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cn small{color:var(--muted);font-size:.72rem;margin-left:4px}
+tr.grp td{background:var(--bg);font-family:var(--display);font-weight:700;font-size:1.05rem;letter-spacing:.02em;padding:6px 12px;position:sticky;left:0}
+td.s{width:46px;height:30px;padding:3px 1px}
+td.s.hr{border-left:1px solid var(--line)}
+.slot{display:block;height:100%;border-radius:5px;background:var(--taken)}
+a.slot{background:var(--ball);color:var(--ball-fg);font-family:var(--mono);font-size:.68rem;text-align:center;line-height:24px;text-decoration:none}
+a.slot:hover{filter:brightness(.92)}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.8rem;color:var(--muted);align-items:center}
+.legend i{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:6px}
+.note{font-size:.8rem;color:var(--muted);max-width:70ch}
+@media (prefers-reduced-motion:no-preference){a.slot{transition:filter .15s}}
+</style></head><body>
+
+<div class="wrap">
+  <header>
+    <h1>Padelbord <span>Utrecht</span></h1>
+    <div class="status" id="status">Laden&hellip;</div>
+  </header>
+
+  <div class="controls">
+    <div class="field"><span class="lbl">Dag</span><div class="days" id="days"></div></div>
+    <div class="field"><span class="lbl">Speeltijd</span>
+      <div class="seg" id="dur"><button type="button" data-v="60" aria-pressed="false">60 min</button><button type="button" data-v="90" aria-pressed="true">90 min</button><button type="button" data-v="120" aria-pressed="false">120 min</button></div></div>
+    <div class="field"><label for="from">Vanaf</label><select id="from"></select></div>
+    <div class="field"><label for="to">Tot</label><select id="to"></select></div>
+    <div class="field"><span class="lbl">Type baan</span>
+      <div class="seg" id="size"><button type="button" data-v="all" aria-pressed="false">Alles</button><button type="button" data-v="double" aria-pressed="true">Dubbel</button><button type="button" data-v="single" aria-pressed="false">Enkel</button></div></div>
+    <div class="field"><span class="lbl">Binnen of buiten</span>
+      <div class="seg" id="io"><button type="button" data-v="all" aria-pressed="true">Alles</button><button type="button" data-v="indoor" aria-pressed="false">Indoor</button><button type="button" data-v="outdoor" aria-pressed="false">Outdoor</button></div></div>
+      </div>
+
+  <div class="summary" id="summary"></div>
+
+  <div class="legend"><span><i style="background:var(--ball)"></i>Vrij, klik om te boeken</span><span><i style="background:var(--taken)"></i>Bezet of voorbij</span><span>Tijden zijn starttijden</span></div>
+
+  <div class="board" id="board"><div class="empty">Beschikbaarheid ophalen&hellip;</div></div>
+
+  <p class="note">Dit overzicht ververst zichzelf ongeveer elk kwartier. Boeken gaat via de site van de club zelf: een vrij vak opent die pagina. Peakz en PadelCasa tonen per locatie; zoek daar de baan en het tijdstip op.</p>
+</div>
+
+<script>
+window.RAW=/*DATA*/;
+const CLUBS=[
+  {key:'vecht',name:'Peakz Vechtsebanen',kind:'foys',link:d=>`https://www.peakzpadel.nl/reserveren/court-booking/reservation?daypart=---&date=${d}&location=vechtsebanen`},
+  {key:'zee',name:'Peakz Zeehaenkade',kind:'foys',link:d=>`https://www.peakzpadel.nl/reserveren/court-booking/reservation?daypart=---&date=${d}&location=zeehaenkade`},
+  {key:'casa',name:'PadelCasa Utrecht',kind:'foys',link:d=>`https://www.padelcasa.com/pages/utrecht#/court-booking/reservation`},
+  {key:'fab',name:'Padel Fabrique',kind:'playtomic',link:d=>`https://playtomic.com/clubs/padel-fabrique`},
+];
+const DAYN=['zo','ma','di','wo','do','vr','za'];
+const pad=n=>String(n).padStart(2,'0');
+const todayISO=(()=>{const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`})();
+const DATES=(RAW.dates||[]).filter(d=>d>=todayISO);
+const state={day:0,dur:90,from:7,to:23,io:'all',size:'double'};
+try{Object.assign(state,JSON.parse(localStorage.getItem('padelbord')||'{}'),{day:0})}catch(e){}
+
+function amsTime(utcDate,utcTime){
+  const d=new Date(`${utcDate}T${utcTime}Z`);
+  const p=new Intl.DateTimeFormat('nl-NL',{timeZone:'Europe/Amsterdam',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(d);
+  const g=t=>p.find(x=>x.type===t).value;
+  return {date:`${g('year')}-${g('month')}-${g('day')}`,hm:`${g('hour')}:${g('minute')}`};
+}
+function parseFoys(j){
+  const items=(j&&j[0]&&j[0].inventoryItemsTimeSlots)||[];
+  return items.filter(it=>/court/i.test(it.type||'')&&!/beach|volley/i.test(it.type||'')).map(it=>{
+    const slots={};
+    for(const s of it.timeSlots||[]) if(s.isAvailable) slots[s.startTime.slice(11,16)+'|'+s.duration]=s.price;
+    return {name:it.name.replace(/\s*\|\s*/g,' ').trim(),io:/outdoor/i.test(it.type)?'outdoor':'indoor',single:/single/i.test(it.type),slots};
+  }).sort((a,b)=>a.name.localeCompare(b.name,'nl',{numeric:true}));
+}
+function parsePlaytomic(date){
+  const t=RAW.pt.tenant; if(!t) throw new Error(RAW.pt.err||'geen data');
+  const courts=(t.resources||[]).filter(r=>!r.sport_id||r.sport_id==='PADEL').map(r=>{const p=r.properties||{};
+    return {id:r.resource_id,name:r.name,io:/outdoor/i.test(p.resource_type||'')?'outdoor':'indoor',single:/single/i.test(p.resource_size||''),slots:{}}});
+  const byId=Object.fromEntries(courts.map(x=>[x.id,x]));
+  for(const arr of Object.values(RAW.pt.avail||{})) for(const a of (arr||[])){const ct=byId[a.resource_id];if(!ct)continue;
+    for(const s of a.slots||[]){const tm=amsTime(a.start_date,s.start_time);if(tm.date!==date)continue;ct.slots[tm.hm+'|'+s.duration]=parseFloat(s.price)}}
+  return courts.sort((a,b)=>a.name.localeCompare(b.name,'nl',{numeric:true}));
+}
+function dayData(date){
+  const res={};
+  for(const c of CLUBS){
+    try{
+      if(c.kind==='foys'){const e=RAW.foys[c.key]||{};if(e.err&&e.err[date])throw new Error(e.err[date]);res[c.key]={courts:parseFoys((e.data||{})[date])}}
+      else res[c.key]={courts:parsePlaytomic(date)};
+    }catch(e){res[c.key]={courts:[],err:e.message||'mislukt'}}
+  }
+  return res;
+}
+function save(){try{localStorage.setItem('padelbord',JSON.stringify({dur:state.dur,from:state.from,to:state.to,io:state.io,size:state.size}))}catch(e){}}
+
+function buildControls(){
+  const days=document.getElementById('days');days.innerHTML='';
+  DATES.forEach((ds,i)=>{const d=new Date(ds+'T12:00:00');
+    const b=document.createElement('button');b.type='button';b.className='day';b.setAttribute('aria-pressed',i===state.day);
+    b.innerHTML=`<small>${ds===todayISO?'vandaag':DAYN[d.getDay()]}</small><b>${d.getDate()}</b>`;
+    b.onclick=()=>{state.day=i;buildControls();draw()};days.appendChild(b)});
+  const f=document.getElementById('from'),t=document.getElementById('to');
+  f.innerHTML='';t.innerHTML='';
+  for(let h=6;h<=23;h++){f.add(new Option(pad(h)+':00',h,false,h===state.from));t.add(new Option(pad(h+1)+':00',h,false,h===state.to))}
+  f.onchange=()=>{state.from=+f.value;if(state.to<state.from){state.to=state.from;t.value=state.to}save();draw()};
+  t.onchange=()=>{state.to=+t.value;if(state.to<state.from){state.from=state.to;f.value=state.from}save();draw()};
+  for(const id of ['dur','io','size']){const seg=document.getElementById(id);
+    seg.querySelectorAll('button').forEach(b=>{b.setAttribute('aria-pressed',String(b.dataset.v)===String(state[id]));
+      b.onclick=()=>{state[id]=id==='dur'?+b.dataset.v:b.dataset.v;save();buildControls();draw()}})}
+}
+
+function draw(){
+  const st=document.getElementById('status');
+  const gen=new Date(RAW.generated);
+  const mins=Math.round((Date.now()-gen)/60000);
+  st.textContent='Opgehaald '+gen.toLocaleString('nl-NL',{weekday:'short',hour:'2-digit',minute:'2-digit'})+(mins>60?' \u2014 verouderd':'');
+  if(!DATES.length){document.getElementById('board').innerHTML='<div class="empty">Deze gegevens zijn verlopen. Probeer het over een kwartier opnieuw.</div>';return}
+  const date=DATES[state.day];
+  const cur=dayData(date);
+  const times=[];for(let h=state.from;h<=state.to;h++){times.push(pad(h)+':00');times.push(pad(h)+':30')}
+  const now=new Date(),nowHM=date===todayISO?pad(now.getHours())+':'+pad(now.getMinutes()):'00:00';
+  const sum=document.getElementById('summary');sum.innerHTML='';
+  let html='<table><thead><tr><th class="cn" style="z-index:2">Type</th>'+times.map(t=>`<th class="${t.endsWith(':00')?'hr':''}">${t.endsWith(':00')?t:''}</th>`).join('')+'</tr></thead><tbody>';
+  let anyRow=false;
+  for(const c of CLUBS){
+    const r=cur[c.key];
+    const courts=r.courts.filter(x=>(state.size==='all'||(state.size==='single')===x.single)&&(state.io==='all'||x.io===state.io));
+    const CATS=[{single:false,io:'indoor',label:'Dubbel · indoor'},{single:false,io:'outdoor',label:'Dubbel · outdoor'},{single:true,io:'indoor',label:'Enkel · indoor'},{single:true,io:'outdoor',label:'Enkel · outdoor'}];
+    let free=0,first=null;
+    const rows=CATS.map(cat=>{
+      const group=courts.filter(x=>x.single===cat.single&&x.io===cat.io);
+      if(!group.length) return '';
+      let n=0;
+      const cells=times.map(t=>{
+        const prices=group.map(ct=>ct.slots[t+'|'+state.dur]).filter(p=>p!=null);
+        const ok=prices.length>0&&t>=nowHM;
+        if(ok){n++;if(!first||t<first)first=t}
+        const lo=ok?Math.min(...prices):0;
+        return `<td class="s ${t.endsWith(':00')?'hr':''}">${ok?`<a class="slot" href="${c.link(date)}" target="_blank" rel="noopener" title="${c.name} · ${cat.label} · ${t} · ${state.dur} min · ${prices.length} ${prices.length>1?'banen':'baan'} vrij · vanaf €${Number(lo).toFixed(2).replace('.',',')}">${t}</a>`:'<span class="slot"></span>'}</td>`}).join('');
+      free+=n;
+      return n===0?'':`<tr><td class="cn">${cat.label}</td>${cells}</tr>`;
+    }).join('');
+    if(rows){anyRow=true;html+=`<tr class="grp"><td colspan="${times.length+1}">${c.name}</td></tr>`+rows}
+    const d=document.createElement('div');d.className='club';
+    d.innerHTML=r.err?`<span class="name">${c.name}</span><span class="err">Kon niet laden (${r.err}).</span><a href="${c.link(date)}" target="_blank" rel="noopener">Bekijk op de site</a>`
+      :`<span class="n ${free?'':'zero'}">${free}</span><span class="name">${c.name}</span><span class="sub">${free?'vrije starttijden, eerste om '+first:'geen plek in dit tijdvak'}</span><a href="${c.link(date)}" target="_blank" rel="noopener">Naar boeken</a>`;
+    sum.appendChild(d);
+  }
+  html+='</tbody></table>';
+  document.getElementById('board').innerHTML=anyRow?html:'<div class="empty">Geen vrije banen voor '+state.dur+' minuten in dit tijdvak. Probeer een andere dag of een kortere speeltijd.</div>';
+}
+buildControls();draw();
+setInterval(()=>{if(!document.hidden)location.reload()},5*60*1000);
+</script>
+</body></html>
