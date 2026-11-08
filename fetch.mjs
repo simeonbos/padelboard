@@ -1,7 +1,7 @@
 // Fetches free padel courts for Utrecht clubs and writes public/index.html
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 
-const DAYS = 8;
+const DAYS = 21; // aantal dagen vooruit (3 weken)
 const FOYS = [
   { key: 'vecht', fed: 'df82f4dd-fd87-4af5-9c2f-656fe1a44357', loc: 'd9b0cde9-9ab6-4859-87b3-563c7ba1ccb9', rt: 6 },
   { key: 'zee',   fed: 'df82f4dd-fd87-4af5-9c2f-656fe1a44357', loc: 'f37fb2ae-bf24-44f1-9b81-61e6c0784840', rt: 6 },
@@ -30,7 +30,15 @@ for (const c of FOYS) {
   const entry = { data: {}, err: {} };
   for (const d of dates) {
     const u = `https://api.foys.io/court-booking/public/api/v1/locations/search?reservationTypeId=${c.rt}&locationId=${c.loc}&playingTimes[]=60&playingTimes[]=90&playingTimes[]=120&date=${d}T00:00`;
-    try { entry.data[d] = await getJson(u, { 'X-FederationID': c.fed }); }
+    try {
+      const j = await getJson(u, { 'X-FederationID': c.fed });
+      const items = (j[0] && j[0].inventoryItemsTimeSlots) || [];
+      entry.data[d] = [{ inventoryItemsTimeSlots: items.map(it => ({
+        name: it.name, type: it.type,
+        timeSlots: (it.timeSlots || []).filter(s => s.isAvailable)
+          .map(s => ({ startTime: s.startTime, duration: s.duration, price: s.price, isAvailable: true })),
+      })) }];
+    }
     catch (e) { entry.err[d] = e.message; }
   }
   raw.foys[c.key] = entry;
