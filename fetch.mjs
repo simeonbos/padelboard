@@ -45,14 +45,34 @@ for (const c of FOYS) {
   console.log(c.key, 'ok', Object.keys(entry.data).length, 'errors', Object.keys(entry.err).length);
 }
 
+// Playtomic's website blocks requests that do not look like a browser, so ask like one.
+const BROWSER_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+  'Accept': 'application/json, text/plain, */*',
+  'Accept-Language': 'nl-NL,nl;q=0.9,en;q=0.8',
+  'Referer': 'https://playtomic.com/clubs/padel-fabrique',
+  'Origin': 'https://playtomic.com',
+};
+async function getPlaytomic(url) {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const r = await fetch(url, { headers: BROWSER_HEADERS });
+    if (r.ok) return r.json();
+    const body = (await r.text()).replace(/<[^>]*>/g, ' ').replace(/[<>&"]/g, '').replace(/\s+/g, ' ').trim().slice(0, 120);
+    const msg = `HTTP ${r.status} (server: ${r.headers.get('server') || '?'}) ${body}`;
+    if (attempt === 2) throw new Error(msg);
+    console.log('playtomic retry after', msg);
+    await new Promise(res => setTimeout(res, 3000));
+  }
+}
+
 let ptFails = 0;
 const ptDates = [amsDate(-1), ...dates];
 for (const d of ptDates) {
-  try { raw.pt.avail[d] = await getJson(`https://playtomic.com/api/clubs/availability?tenant_id=${TENANT}&date=${d}&sport_id=PADEL`); }
+  try { raw.pt.avail[d] = await getPlaytomic(`https://playtomic.com/api/clubs/availability?tenant_id=${TENANT}&date=${d}&sport_id=PADEL`); }
   catch (e) { ptFails++; raw.pt.err = e.message; }
 }
 if (ptFails < ptDates.length) raw.pt.err = null;
-console.log('fabrique failures', ptFails);
+console.log('fabrique failures', ptFails, 'of', ptDates.length, raw.pt.err || '');
 
 const tpl = await readFile(new URL('./template.html', import.meta.url), 'utf8');
 const json = JSON.stringify(raw).replace(/</g, '\\u003c');
