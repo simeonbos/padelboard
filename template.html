@@ -128,7 +128,7 @@ const CLUBS=[
   {key:'vecht',name:'Peakz Vechtsebanen',kind:'foys',link:d=>`https://www.peakzpadel.nl/reserveren/court-booking/reservation?daypart=---&date=${d}&location=vechtsebanen`},
   {key:'zee',name:'Peakz Zeehaenkade',kind:'foys',link:d=>`https://www.peakzpadel.nl/reserveren/court-booking/reservation?daypart=---&date=${d}&location=zeehaenkade`},
   {key:'casa',name:'PadelCasa Utrecht',kind:'foys',link:d=>`https://www.padelcasa.com/pages/utrecht#/court-booking/reservation`},
-  {key:'fab',name:'Padel Fabrique',kind:'playtomic',link:d=>`https://playtomic.com/clubs/padel-fabrique`},
+  {key:'fab',name:'Padel Fabrique',kind:'link',link:d=>`https://playtomic.com/clubs/padel-fabrique`},
 ];
 const DAYN=['zo','ma','di','wo','do','vr','za'];
 const pad=n=>String(n).padStart(2,'0');
@@ -165,7 +165,7 @@ function dayData(date){
   for(const c of CLUBS){
     try{
       if(c.kind==='foys'){const e=RAW.foys[c.key]||{};if(e.err&&e.err[date])throw new Error(e.err[date]);res[c.key]={courts:parseFoys((e.data||{})[date])}}
-      else res[c.key]={courts:parsePlaytomic(date)};
+      else res[c.key]={courts:[],link:true};
     }catch(e){res[c.key]={courts:[],err:e.message||'mislukt'}}
   }
   return res;
@@ -204,6 +204,13 @@ function draw(){
   let list='';
   for(const c of CLUBS){
     const r=cur[c.key];
+    if(r.link){
+      list+=`<section class="lclub"><h2>${c.name}<a href="${c.link(date)}" target="_blank" rel="noopener">Naar Playtomic</a></h2><span class="lnone">Vrije tijden staan alleen op Playtomic.</span></section>`;
+      const d=document.createElement('div');d.className='club';
+      d.innerHTML=`<span class="name">${c.name}</span><span class="sub">Vrije tijden staan alleen op Playtomic</span><a href="${c.link(date)}" target="_blank" rel="noopener">Bekijk op Playtomic</a>`;
+      sum.appendChild(d);
+      continue;
+    }
     const courts=r.courts.filter(x=>(state.size==='all'||(state.size==='single')===x.single)&&(state.io==='all'||x.io===state.io));
     const CATS=[{single:false,io:'indoor',label:'Dubbel · indoor'},{single:false,io:'outdoor',label:'Dubbel · outdoor'},{single:true,io:'indoor',label:'Enkel · indoor'},{single:true,io:'outdoor',label:'Enkel · outdoor'}];
     let free=0,first=null;
